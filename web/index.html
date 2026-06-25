@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=1100,initial-scale=1">
+<title>VQA ARCADE MACHINE · SHOWTIME</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a1a;--neon:#00f0ff;--pink:#ff2d95;--green:#0fff50;
+  --yellow:#ffe600;--red:#f87171;--muted:#64748b;--dim:#334155;--white:#e2e8f0;
+}
+body{
+  background:var(--bg);color:var(--white);
+  font-family:'SF Mono','Menlo',monospace;overflow:hidden;height:100vh;
+  user-select:none;-webkit-user-select:none;
+}
+@font-face{font-family:'Pixel';src:url(font/PressStart2P.ttf) format('truetype')}
+
+/* CRT Overlay */
+#crt{
+  position:fixed;inset:0;z-index:1000;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,0.1) 0px,rgba(0,0,0,0.1) 1px,transparent 1px,transparent 4px);
+}
+#crt::after{content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,0.45) 100%);}
+#crt .glitch-spot{position:absolute;background:rgba(255,255,255,0.06);border-radius:2px;opacity:0;transition:opacity 0.1s;}
+#crt .glitch-spot.on{opacity:1;}
+
+/* CRT border shrink for countdown */
+.crt-border{position:fixed;inset:0;z-index:2001;pointer-events:none;border:3px solid var(--green);
+  opacity:0;transition:opacity .15s,inset .6s cubic-bezier(.25,.8,.25,1);}
+.crt-border.show{opacity:.8;inset:8px;}
+.crt-border.tight{inset:25%;opacity:.5;}
+
+/* Flash */
+#flash{position:fixed;inset:0;z-index:1990;pointer-events:none;background:transparent;transition:background .08s;}
+#flash.active{background:rgba(0,0,0,.7);}
+#flash.white{background:rgba(255,255,255,.25);}
+#flash .scanline{position:absolute;left:0;width:100%;height:2px;background:rgba(255,255,255,.15);transition:top .1s;}
+
+/* Countdown */
+.countdown{
+  position:fixed;inset:0;z-index:2005;pointer-events:none;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.75);
+  font-family:'Pixel',monospace;font-size:100px;color:var(--green);
+  text-shadow:0 0 50px var(--green),0 0 100px var(--green);
+  opacity:0;transition:opacity .1s;
+}
+.countdown.show{opacity:1;}
+
+/* KO Split */
+.ko-split{position:fixed;z-index:2010;inset:0;pointer-events:none;display:none;}
+.ko-split.show{display:block;}
+.ko-split .half{position:absolute;top:0;width:50%;height:100%;background:var(--bg);
+  transition:transform .6s cubic-bezier(0.3,0,0.3,1);}
+.ko-split .left{left:0;clip-path:polygon(0 0,100% 0,100% 100%,0 100%);}
+.ko-split .right{right:0;clip-path:polygon(0 0,100% 0,100% 100%,0 100%);}
+.ko-split.split .left{transform:translateX(-50%);}
+.ko-split.split .right{transform:translateX(50%);}
+.ko-perfect{
+  position:fixed;z-index:2011;pointer-events:none;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Pixel',monospace;font-size:64px;color:var(--green);
+  text-shadow:0 0 40px var(--green);opacity:0;transition:opacity .4s 0.6s;
+}
+.ko-perfect.show{opacity:1;}
+
+/* Fight Text */
+.fight-text{
+  position:fixed;z-index:1995;pointer-events:none;
+  font-family:'Pixel',monospace;font-size:52px;color:var(--green);
+  left:50%;top:55%;transform:translate(-50%,-50%) scale(.3);opacity:0;
+  animation:fight 2s ease-out forwards;
+  text-shadow:0 0 40px var(--green);
+}
+@keyframes fight{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.3)}
+  25%{opacity:1;transform:translate(-50%,-60%) scale(1.4)}
+  100%{opacity:0;transform:translate(-50%,-200%) scale(1.8)}
+}
+
+/* Achievement */
+.ach-popup{
+  position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-120px);
+  z-index:2000;font-family:'Pixel',monospace;font-size:13px;
+  color:var(--yellow);background:#1a1a2e;border:2px solid var(--yellow);
+  border-radius:8px;padding:12px 24px;text-align:center;white-space:nowrap;
+  transition:transform .4s cubic-bezier(.18,.89,.32,1.2);
+  text-shadow:0 0 10px var(--yellow);
+}
+.ach-popup.show{transform:translateX(-50%) translateY(0);}
+
+/* Achievement Panel */
+.ach-panel{
+  position:fixed;inset:0;z-index:3000;background:#0a0a1a;
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  padding:40px;
+}
+.ach-panel.show{display:flex;}
+.ach-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:16px;
+  max-width:800px;width:100%;margin-bottom:24px;
+}
+.ach-card{
+  border:2px solid var(--dim);border-radius:8px;padding:16px 12px;
+  text-align:center;transition:all 0.3s;background:rgba(0,0,0,0.2);
+  opacity:0.4;filter:grayscale(1);
+}
+.ach-card.unlocked{border-color:var(--yellow);opacity:1;filter:none;
+  box-shadow:0 0 12px rgba(255,230,0,0.15);background:rgba(255,230,0,0.04);
+}
+.ach-card .ach-icon{font-size:28px;margin-bottom:6px;}
+.ach-card .ach-name{font-family:'Pixel',monospace;font-size:9px;color:var(--yellow);margin-bottom:4px;}
+.ach-card.locked .ach-name{color:var(--muted);}
+.ach-card .ach-desc{font-size:10px;color:var(--muted);line-height:1.4;}
+.ach-card .ach-lock{font-size:20px;margin-bottom:6px;color:var(--dim);}
+.ach-title{
+  font-family:'Pixel',monospace;font-size:18px;color:var(--yellow);
+  margin-bottom:24px;text-shadow:0 0 12px rgba(255,230,0,0.3);
+}
+.ach-count{font-size:12px;color:var(--muted);margin-bottom:20px;}
+.btn-ach-close{
+  font-family:'Pixel',monospace;font-size:12px;padding:10px 36px;
+  border:2px solid var(--muted);color:var(--muted);
+  background:transparent;border-radius:6px;cursor:pointer;
+}
+.btn-ach-close:hover{color:var(--white);border-color:var(--white);}
+
+/* Title screen top buttons */
+.btn-ach,.btn-help{
+  font-family:'Pixel',monospace;font-size:11px;padding:6px 14px;border-radius:6px;
+  cursor:pointer;transition:all .15s;z-index:2;
+}
+.btn-ach{color:var(--yellow);border:1px solid var(--yellow);background:rgba(255,230,0,0.05);}
+.btn-ach:hover{background:rgba(255,230,0,0.15);box-shadow:0 0 10px rgba(255,230,0,0.15);}
+.btn-help{color:var(--neon);border:1px solid var(--neon);background:rgba(0,240,255,0.05);}
+.btn-help:hover{background:rgba(0,240,255,0.15);box-shadow:0 0 10px rgba(0,240,255,0.15);}
+.btn-top-row{display:flex;gap:12px;margin-bottom:14px;}
+
+/* Help Panel */
+.help-panel{
+  position:fixed;inset:0;z-index:3000;background:#0a0a1a;
+  display:none;flex-direction:column;align-items:center;justify-content:flex-start;
+  padding:40px 30px;overflow-y:auto;
+}
+.help-panel.show{display:flex;}
+.help-title{font-family:'Pixel',monospace;font-size:16px;color:var(--neon);margin-bottom:20px;
+  text-shadow:0 0 12px rgba(0,240,255,0.3);}
+.help-section{max-width:700px;width:100%;margin-bottom:16px;}
+.help-section h3{font-family:'Pixel',monospace;font-size:12px;color:var(--yellow);margin-bottom:8px;
+  border-bottom:1px solid var(--dim);padding-bottom:4px;}
+.help-section p{font-size:11px;color:var(--white);line-height:1.7;}
+.help-section .muted{color:var(--muted);}
+.help-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;}
+.help-card{border:1px solid var(--dim);border-radius:6px;padding:10px 14px;
+  background:rgba(255,255,255,.02);}
+.help-card .h-name{font-family:'Pixel',monospace;font-size:10px;margin-bottom:2px;}
+.help-card .h-desc{font-size:10px;color:var(--muted);line-height:1.5;}
+.help-card .h-tag{display:inline-block;font-size:8px;padding:1px 6px;border-radius:3px;margin-left:4px;}
+.help-card .tag-fr{color:var(--neon);border:1px solid var(--neon);}
+.help-card .tag-nr{color:var(--yellow);border:1px solid var(--yellow);}
+.help-card .tag-vid{color:var(--pink);border:1px solid var(--pink);}
+.btn-help-close{
+  font-family:'Pixel',monospace;font-size:12px;padding:10px 36px;
+  border:2px solid var(--muted);color:var(--muted);
+  background:transparent;border-radius:6px;cursor:pointer;margin-top:10px;
+}
+.btn-help-close:hover{color:var(--white);border-color:var(--white);}
+
+/* Particle */
+.particle{
+  position:fixed;z-index:1996;pointer-events:none;border-radius:50%;
+  animation:pBoom 1s ease-out forwards;
+}
+@keyframes pBoom{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(0);opacity:0}}
+
+/* App */
+#app{position:relative;z-index:1;height:100vh;overflow:hidden;}
+.screen{display:none;flex-direction:column;align-items:center;justify-content:center;height:100vh;padding:30px;}
+.screen.active{display:flex;}
+
+/* Starfield */
+#stars{position:fixed;inset:0;z-index:0;background:var(--bg);}
+
+/* TITLE SCREEN */
+#screen-title{position:relative;}
+#screen-title>*{position:relative;z-index:1;}
+.title-center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.title-box{
+  border:3px solid var(--neon);border-radius:8px;padding:18px 36px;
+  background:rgba(0,240,255,.03);margin-bottom:24px;
+  box-shadow:0 0 20px rgba(0,240,255,.2);
+}
+.title-main{font-family:'Pixel',monospace;font-size:22px;color:var(--neon);text-align:center;letter-spacing:3px;}
+.title-letter{display:inline-block;transition:transform .3s cubic-bezier(.18,.89,.32,1.2);}
+.title-letter.drop{animation:letterDrop .5s cubic-bezier(.18,.89,.32,1.2) both;}
+@keyframes letterDrop{
+  0%{transform:translateY(-200px);opacity:0}
+  60%{transform:translateY(10px);opacity:1}
+  100%{transform:translateY(0);opacity:1}
+}
+.title-sub{font-size:15px;color:var(--neon);text-align:center;margin-top:6px;}
+.badge-row{display:flex;gap:14px;margin-bottom:24px;}
+.badge{
+  font-family:'Pixel',monospace;font-size:11px;padding:5px 14px;
+  border:2px solid var(--yellow);color:var(--yellow);border-radius:6px;
+  transform:scale(0);transition:transform .3s cubic-bezier(.18,.89,.32,1.2);
+}
+.badge.pop{transform:scale(1);}
+.badge.pink{border-color:var(--pink);color:var(--pink);}
+.press-start{
+  font-family:'Pixel',monospace;font-size:22px;color:var(--green);
+  margin-bottom:16px;transition:opacity .2s;
+}
+.btn-start{
+  font-family:'Pixel',monospace;font-size:14px;padding:14px 48px;
+  border:3px solid var(--green);color:var(--green);
+  background:rgba(15,255,80,.06);border-radius:8px;
+  cursor:pointer;transition:all .15s;margin-bottom:20px;position:relative;overflow:visible;
+}
+.btn-start:hover{background:rgba(15,255,80,.15);transform:scale(1.05);}
+.btn-start:active{transform:scale(.95);}
+/* Arc effect */
+.btn-start::after{
+  content:'';position:absolute;inset:-4px;border-radius:12px;border:2px solid transparent;
+  transition:all .2s;pointer-events:none;
+}
+.btn-start:hover::after{border-color:var(--green);animation:arcPulse .6s infinite;}
+@keyframes arcPulse{0%,100%{box-shadow:0 0 6px var(--green)}50%{box-shadow:0 0 20px var(--green),0 0 40px var(--green)}}
+.hi-score{font-size:11px;color:var(--muted);margin-bottom:4px;}
+.hi-value{font-family:'Pixel',monospace;font-size:26px;color:var(--pink);}
+.footer-p{font-size:12px;color:var(--muted);text-align:center;padding:10px 0;}
+
+/* SELECT SCREEN */
+.select-title{font-family:'Pixel',monospace;font-size:16px;color:var(--neon);margin-bottom:24px;}
+.mode-row{display:flex;gap:20px;margin-bottom:20px;}
+.mode-card{
+  border:2px solid var(--dim);border-radius:10px;padding:18px 32px;text-align:center;cursor:pointer;
+  transition:all .25s;background:rgba(255,255,255,.02);
+}
+.mode-card:hover{border-color:var(--muted);}
+.mode-card.sel{border-color:var(--neon);background:rgba(0,240,255,.06);
+  box-shadow:0 0 20px rgba(0,240,255,.2);animation:cardBreathe 2s ease-in-out infinite;}
+@keyframes cardBreathe{0%,100%{box-shadow:0 0 16px rgba(0,240,255,.2)}50%{box-shadow:0 0 32px rgba(0,240,255,.35)}}
+.mode-card .label{font-family:'Pixel',monospace;font-size:13px;color:var(--neon);}
+.mode-card .desc{font-size:11px;color:var(--muted);margin-top:4px;}
+.mode-icon{display:inline-block;margin-bottom:6px;width:32px;height:32px;border-radius:4px;}
+.mode-icon.fr{border:2px solid var(--neon);background:rgba(0,240,255,.1);}
+.mode-icon.nr{border:2px solid var(--yellow);background:rgba(255,230,0,.08);}
+
+.algo-row{display:flex;gap:12px;margin-bottom:20px;}
+.algo-btn{
+  font-family:'Pixel',monospace;font-size:11px;padding:8px 18px;
+  border:2px solid var(--dim);color:var(--muted);background:transparent;
+  border-radius:6px;cursor:pointer;transition:all .15s;
+}
+.algo-btn:hover{border-color:var(--muted);}
+.algo-btn.sel{border-color:var(--green);color:var(--green);box-shadow:0 0 10px rgba(15,255,80,.2);}
+.params{display:flex;gap:28px;margin-bottom:24px;color:var(--muted);font-size:12px;}
+.params label{display:flex;align-items:center;gap:8px;}
+.params input{width:60px;background:rgba(255,255,255,.05);border:2px solid var(--dim);color:var(--white);padding:4px 8px;border-radius:4px;font-family:inherit;text-align:center;}
+.btn-fight{
+  font-family:'Pixel',monospace;font-size:14px;padding:12px 56px;
+  border:3px solid var(--green);color:var(--green);
+  background:rgba(15,255,80,.06);border-radius:8px;
+  cursor:pointer;transition:all .15s;position:relative;
+}
+.btn-fight:hover{background:rgba(15,255,80,.15);transform:scale(1.05);}
+.btn-fight:hover::after{content:'';position:absolute;inset:-3px;border-radius:10px;border:2px solid var(--green);animation:arcPulse .5s infinite;pointer-events:none;}
+.btn-fight:active{transform:scale(.92);}
+
+/* GAME SCREEN */
+.game-header{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:720px;margin-bottom:12px;}
+.game-header h2{font-family:'Pixel',monospace;font-size:12px;color:var(--yellow);}
+.btn-back{font-size:11px;color:var(--red);border:1px solid var(--red);background:transparent;padding:6px 16px;border-radius:6px;cursor:pointer;}
+.btn-back:hover{background:rgba(248,113,113,.1);}
+
+/* Algo info banner */
+.algo-info{
+  width:100%;max-width:720px;margin-bottom:10px;border-radius:6px;
+  border:1px solid var(--dim);background:rgba(0,240,255,.03);
+  overflow:hidden;transition:all .3s;
+}
+.algo-info.nr{border-color:rgba(255,230,0,.3);background:rgba(255,230,0,.03);}
+.algo-info.fr{border-color:rgba(0,240,255,.3);background:rgba(0,240,255,.03);}
+.algo-info .ai-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:6px 12px;cursor:pointer;user-select:none;
+}
+.algo-info .ai-header:hover{background:rgba(255,255,255,.03);}
+.algo-info .ai-title{font-family:'Pixel',monospace;font-size:10px;display:flex;align-items:center;gap:10px;}
+.algo-info .ai-title .ai-mode{
+  font-size:8px;padding:2px 8px;border-radius:3px;
+}
+.algo-info.fr .ai-mode{color:var(--neon);border:1px solid var(--neon);}
+.algo-info.nr .ai-mode{color:var(--yellow);border:1px solid var(--yellow);}
+.algo-info .ai-toggle{font-size:16px;color:var(--muted);transition:transform .2s;}
+.algo-info .ai-toggle.open{transform:rotate(180deg);}
+.algo-info .ai-body{padding:0 12px 8px;display:flex;flex-wrap:wrap;gap:8px 20px;font-size:10px;color:var(--muted);line-height:1.6;max-height:60px;overflow:hidden;transition:max-height .3s,padding .3s;}
+.algo-info.collapsed .ai-body{max-height:0;padding-top:0;padding-bottom:0;}
+
+/* VS Banner */
+.vs-banner{
+  font-family:'Pixel',monospace;font-size:28px;color:var(--pink);
+  text-align:center;width:100%;max-width:720px;margin-bottom:8px;
+  opacity:0;transform:scale(0.5);transition:all .5s cubic-bezier(.18,.89,.32,1.2);
+  text-shadow:0 0 20px var(--pink);
+}
+.vs-banner.show{opacity:1;transform:scale(1);}
+.vs-banner .vs-ref{color:var(--neon);}
+.vs-banner .vs-dis{color:var(--pink);}
+
+.preview-row{display:flex;gap:16px;width:100%;max-width:720px;margin-bottom:12px;}
+.preview-box{
+  flex:1;height:160px;border:2px solid var(--dim);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;
+  cursor:pointer;overflow:hidden;position:relative;background:rgba(0,0,0,.3);transition:border-color .2s;
+}
+.preview-box:hover{border-color:var(--muted);}
+.preview-box img{max-width:100%;max-height:100%;object-fit:contain;}
+.preview-box.ref{border-color:var(--pink);}
+.preview-box.dis{border-color:var(--neon);}
+.preview-box .hint{position:absolute;pointer-events:none;}
+
+/* Progress */
+.progress-bar{display:flex;gap:3px;width:100%;max-width:720px;margin-bottom:8px;}
+.prog-seg{height:14px;flex:1;border-radius:2px;background:var(--dim);transition:background .3s;}
+.prog-seg.on{background:var(--green);}
+.prog-seg.on.low{background:var(--neon);}
+.prog-seg.on.mid{background:var(--yellow);}
+.prog-seg.on.high{background:var(--green);}
+.prog-seg.bounce{animation:segJump .35s ease-out;}
+@keyframes segJump{0%{transform:scaleY(1)}30%{transform:scaleY(2.5)}100%{transform:scaleY(1)}}
+
+/* Active progress pulse */
+.prog-seg.latest{box-shadow:0 0 8px var(--green);animation:segGlow .8s ease-in-out infinite;}
+@keyframes segGlow{0%,100%{box-shadow:0 0 4px var(--green)}50%{box-shadow:0 0 14px var(--green)}}
+
+.scoreboard{display:flex;gap:40px;margin-bottom:8px;text-align:center;}
+.sb-item .sbl{font-size:10px;color:var(--muted);margin-bottom:4px;}
+.sb-item .sbv{font-family:'Pixel',monospace;font-size:22px;color:var(--green);}
+.sb-item .sbr{font-family:'Pixel',monospace;font-size:28px;}
+
+/* curve canvas */
+#curve{border:2px solid var(--dim);border-radius:8px;display:block;margin-bottom:6px;width:100%;max-width:720px;}
+
+/* Frame dots overlay canvas */
+#frame-dots{position:absolute;inset:0;z-index:5;pointer-events:none;}
+
+#log{width:100%;max-width:720px;height:55px;overflow-y:auto;font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:8px;}
+#log .ui{color:var(--neon);}#log .worker{color:var(--yellow);}#log .score{color:var(--green);}#log .err{color:var(--red);}
+
+.game-btns{display:flex;gap:12px;}
+.btn-game{
+  font-family:'Pixel',monospace;font-size:11px;padding:10px 24px;border-radius:6px;cursor:pointer;
+  border:2px solid;transition:all .15s;
+  background:rgba(15,255,80,.04);color:var(--green);border-color:var(--green);
+}
+.btn-game:hover{background:rgba(15,255,80,.12);}
+.btn-game:disabled{opacity:.4;cursor:not-allowed;}
+.btn-game.export{color:var(--yellow);border-color:var(--yellow);background:rgba(255,230,0,.04);}
+.btn-game.export:hover{background:rgba(255,230,0,.12);}
+.btn-game.reset{color:var(--red);border-color:var(--red);background:rgba(248,113,113,.04);}
+
+/* RESULT SCREEN */
+.banner{
+  border:3px solid var(--green);border-radius:8px;padding:12px 40px;
+  background:rgba(15,255,80,.04);margin-bottom:16px;
+  font-family:'Pixel',monospace;font-size:24px;text-align:center;transition:all .3s;
+}
+.banner.gold{border-color:var(--yellow);background:rgba(255,230,0,.04);color:var(--yellow);box-shadow:0 0 20px rgba(255,230,0,.2);}
+.result-card{
+  border:2px solid var(--neon);border-radius:8px;padding:20px 44px;
+  background:rgba(0,240,255,.03);margin-bottom:16px;text-align:center;
+}
+.result-algo{color:var(--yellow);margin-bottom:4px;}
+.result-score{font-family:'Pixel',monospace;font-size:42px;color:var(--green);margin-bottom:4px;}
+.result-rank{font-family:'Pixel',monospace;font-size:36px;margin-bottom:2px;}
+.result-meta{font-size:12px;color:var(--muted);}
+.result-btns{display:flex;gap:14px;}
+
+/* Rating Spin */
+.spin-letter{display:inline-block;transition:none;}
+.spin-letter.jackpot{animation:jackpot .5s ease-out both;}
+@keyframes jackpot{0%{transform:rotateY(0)}50%{transform:rotateY(360deg) scale(1.5)}100%{transform:rotateY(720deg) scale(1)}}
+
+/* Falling items */
+.fall-item{animation:fallIn .6s cubic-bezier(.18,.89,.32,1.2) both;}
+@keyframes fallIn{0%{transform:translateY(-80px);opacity:0}100%{transform:translateY(0);opacity:1}}
+
+/* DEMO overlay */
+.demo-label{
+  position:fixed;top:12px;right:20px;z-index:1001;
+  font-family:'Pixel',monospace;font-size:10px;color:var(--pink);
+  border:1px solid var(--pink);padding:4px 10px;border-radius:4px;
+  opacity:0;transition:opacity .3s;
+  text-shadow:0 0 6px var(--pink);
+}
+.demo-label.on{opacity:.8;}
+
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- CRT -->
+<div id="crt"><div class="glitch-spot" id="gspot" style="left:30%;top:20%;width:120px;height:3px"></div></div>
+
+<!-- CRT Border -->
+<div class="crt-border" id="crt-border"></div>
+
+<!-- Flash -->
+<div id="flash"><div class="scanline"></div></div>
+
+<!-- KO Split -->
+<div class="ko-split" id="ko-split"><div class="half left"></div><div class="half right"></div></div>
+<div class="ko-perfect" id="ko-perfect">PERFECT</div>
+
+<!-- Countdown -->
+<div class="countdown" id="cd"></div>
+
+<!-- Demo label -->
+<div class="demo-label" id="demo-label">DEMO</div>
+
+<!-- Starfield -->
+<canvas id="stars"></canvas>
+
+<!-- App -->
+<div id="app">
+  <!-- TITLE -->
+  <div id="screen-title" class="screen active">
+    <div class="title-center">
+      <div class="btn-top-row">
+        <button class="btn-help" id="btn-help">📖 说明</button>
+        <button class="btn-ach" id="btn-ach">🏆 成就</button>
+      </div>
+      <div class="title-box">
+        <div class="title-main" id="title-main"><span class="title-letter">V</span><span class="title-letter">Q</span><span class="title-letter">A</span><span class="title-letter"> </span><span class="title-letter">A</span><span class="title-letter">R</span><span class="title-letter">C</span><span class="title-letter">A</span><span class="title-letter">D</span><span class="title-letter">E</span><span class="title-letter"> </span><span class="title-letter">M</span><span class="title-letter">A</span><span class="title-letter">C</span><span class="title-letter">H</span><span class="title-letter">I</span><span class="title-letter">N</span><span class="title-letter">E</span></div>
+        <div class="title-sub">视觉质量评估 · 街机评分台</div>
+      </div>
+      <div class="badge-row" id="badge-row">
+        <span class="badge">SSIM</span><span class="badge">PSNR</span><span class="badge">NIQE</span><span class="badge pink">VSFA</span>
+      </div>
+      <div class="press-start" id="press-start">PRESS START</div>
+      <button class="btn-start" id="btn-start">▶ 开始游戏</button>
+      <div class="hi-score">HI-SCORE</div>
+      <div class="hi-value" id="hi-score-val">--</div>
+    </div>
+    <div class="footer-p">v2.0 SHOWTIME · 深圳大学 · 2026</div>
+  </div>
+
+  <!-- SELECT -->
+  <div id="screen-select" class="screen">
+    <div class="select-title">◆ 选择模式与算法 ◆</div>
+    <div class="mode-row">
+      <div class="mode-card sel" data-mode="FR" id="mode-fr">
+        <div class="mode-icon fr"></div>
+        <div class="label">FR MODE</div>
+        <div class="desc">全参考 · 需参考图</div>
+      </div>
+      <div class="mode-card" data-mode="NR" id="mode-nr">
+        <div class="mode-icon nr"></div>
+        <div class="label">NR MODE</div>
+        <div class="desc">无参考 · 仅需测试图</div>
+      </div>
+    </div>
+    <div class="algo-row" id="algo-row"></div>
+    <div class="params">
+      <label>步长 <input type="number" id="param-stride" value="1" min="1" max="30"></label>
+      <label>最大帧 <input type="number" id="param-maxf" value="60" min="0" max="9999"><span style="font-size:10px;color:var(--dim)">0=全部</span></label>
+    </div>
+    <button class="btn-fight" id="btn-fight">⚔ 开打！</button>
+  </div>
+
+  <!-- GAME -->
+  <div id="screen-game" class="screen">
+    <div class="game-header">
+      <h2 id="game-title">PSNR · FR MODE</h2>
+      <button class="btn-back" id="btn-back-game">返回主页</button>
+    </div>
+    <div class="algo-info fr" id="algo-info">
+      <div class="ai-header" id="ai-header">
+        <div class="ai-title">
+          <span id="ai-name">PSNR</span>
+          <span class="ai-mode" id="ai-mode">FR 全参考</span>
+          <span id="ai-dir">📈 越大越好</span>
+        </div>
+        <span class="ai-toggle open" id="ai-toggle">▼</span>
+      </div>
+      <div class="ai-body" id="ai-body">峰值信噪比 · 逐像素均方误差 · 范围 15~50 dB · ≥45 极好 ≥35 良好 ≥25 尚可</div>
+    </div>
+    <div class="vs-banner" id="vs-banner">REF <span class="vs-dis">VS</span> DIS</div>
+    <div class="preview-row">
+      <div class="preview-box ref" id="preview-ref"><img id="img-ref" src=""><span class="hint" id="hint-ref">拖入参考</span></div>
+      <div class="preview-box dis" id="preview-dis"><img id="img-dis" src=""><span class="hint" id="hint-dis">拖入测试</span></div>
+    </div>
+    <div class="progress-bar" id="progress-bar"></div>
+    <div class="scoreboard">
+      <div class="sb-item"><div class="sbl">SCORE</div><div class="sbv" id="sb-score">--</div></div>
+      <div class="sb-item"><div class="sbl">RANK</div><div class="sbr" id="sb-rank">--</div></div>
+      <div class="sb-item"><div class="sbl">FRAMES</div><div class="sbv" id="sb-frames">0</div></div>
+    </div>
+    <canvas id="curve" height="120"></canvas>
+    <div id="log"></div>
+    <div class="game-btns">
+      <button class="btn-game" id="btn-run">开始评估</button>
+      <button class="btn-game export" id="btn-export">导出报告</button>
+      <button class="btn-game reset" id="btn-reset">重置</button>
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div id="screen-result" class="screen">
+    <div class="banner" id="result-banner">关卡通过！</div>
+    <div class="result-card">
+      <div class="result-algo fall-item" id="result-algo" style="animation-delay:0ms">--</div>
+      <div class="result-score fall-item" id="result-score" style="animation-delay:150ms">--</div>
+      <div class="result-rank fall-item" id="result-rank" style="animation-delay:300ms">--</div>
+      <div class="result-meta fall-item" id="result-meta" style="animation-delay:450ms">--</div>
+    </div>
+    <div class="result-btns">
+      <button class="btn-start" id="btn-retry">再来一次</button>
+      <button class="btn-start" id="btn-result-back" style="border-color:var(--red);color:var(--red);background:rgba(248,113,113,.06)">返回主页</button>
+    </div>
+    <div id="history-section" style="width:100%;max-width:440px;margin-top:12px;text-align:center"></div>
+  </div>
+</div>
+
+<div class="ach-popup" id="ach-popup"></div>
+
+<!-- Achievement Panel -->
+<div class="ach-panel" id="ach-panel">
+  <div class="ach-title">🏆 成就殿堂</div>
+  <div class="ach-count" id="ach-count"></div>
+  <div class="ach-grid" id="ach-grid"></div>
+  <button class="btn-ach-close" id="btn-ach-close">关闭</button>
+</div>
+
+<!-- Help Panel -->
+<div class="help-panel" id="help-panel">
+  <div class="help-title">📖 使用说明</div>
+
+  <div class="help-section">
+    <h3>🎯 这是什么</h3>
+    <p>一台街机风格的<span style="color:var(--neon)">视觉质量评估打分台</span>。
+    拖入图片或视频，系统自动计算画质分数并给出评级（S / A / B / C / D）。</p>
+  </div>
+
+  <div class="help-section">
+    <h3>📋 两种模式</h3>
+    <p><b style="color:var(--neon)">FR 全参考</b>：需要<u>原始参考素材</u>和待测素材两份文件。
+    算法逐像素 / 逐结构比对差异，回答"相比原图损失了多少"。</p>
+    <p style="margin-top:4px"><b style="color:var(--yellow)">NR 无参考</b>：只需待测素材一份文件。
+    算法直接分析画面自然度或深度学习特征，回答"这张图/这段视频本身好不好"。</p>
+  </div>
+
+  <div class="help-section">
+    <h3>🧪 五种算法</h3>
+    <div class="help-grid">
+      <div class="help-card">
+        <div class="h-name" style="color:var(--neon)">PSNR <span class="h-tag tag-fr">FR</span></div>
+        <div class="h-desc">峰值信噪比。逐像素算误差，最简单的指标。单位 dB，<b>越大越好</b>（≥45 极好）。</div>
+      </div>
+      <div class="help-card">
+        <div class="h-name" style="color:var(--neon)">SSIM <span class="h-tag tag-fr">FR</span></div>
+        <div class="h-desc">结构相似度。模拟人眼对亮度/对比度/结构的感知，范围 0~1，<b>越大越好</b>。</div>
+      </div>
+      <div class="help-card">
+        <div class="h-name" style="color:var(--yellow)">NIQE-Lite <span class="h-tag tag-nr">NR</span></div>
+        <div class="h-desc">轻量无参考评分。分析图像自然统计特征偏离程度，~3~30 分，<b>越小越好</b>。</div>
+      </div>
+      <div class="help-card">
+        <div class="h-name" style="color:var(--yellow)">VSFA <span class="h-tag tag-nr">NR</span></div>
+        <div class="h-desc">深度学习无参考（VGG16 逐帧推理）。输出 DMOS 分数，<b>越小越好</b>。</div>
+      </div>
+      <div class="help-card">
+        <div class="h-name" style="color:var(--yellow)">VSFA-V <span class="h-tag tag-nr">NR</span> <span class="h-tag tag-vid">仅视频</span></div>
+        <div class="h-desc">视频级深度学习模型。固定采 4 帧时序聚合，直接输出 MOS，<b>越大越好</b>。⚠ 仅支持视频。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="help-section">
+    <h3>🕹 怎么操作</h3>
+    <p>1. 首页按 <b style="color:var(--green)">Enter</b> 或点"开始游戏"进入选择页<br>
+    2. 选 FR/NR 模式 → 选算法 → 设置参数 → 点"开打！"<br>
+    3. <b>拖入/点击</b>上传参考图和测试图（NR 仅需测试图）<br>
+    4. 点"开始评估" → 倒计时 → 实时进度 → <b>自动跳结算页</b><br>
+    5. 结算页可"再来一次"（保留数据）、导出 JSON 报告</p>
+  </div>
+
+  <div class="help-section">
+    <h3>⌨ 快捷键</h3>
+    <p><b style="color:var(--green)">Enter / Space</b>：标题页 → 选择页；结算页 → 再来一次<br>
+    <b style="color:var(--red)">Esc</b>：任意页面返回标题页</p>
+  </div>
+
+  <button class="btn-help-close" id="btn-help-close">关闭</button>
+</div>
+<input type="file" accept="image/*,video/*" id="file-ref" hidden>
+<input type="file" accept="image/*,video/*" id="file-dis" hidden>
+
+<script>
+const API=window.location.origin;
+
+// ── Demo data ──
+const DEMO_RESULTS = [
+  {algo:'PSNR',kind:'FR',score:24.02,unit:'dB',agg:{n:1},per_frame:[24.02],label:'高斯噪声'},
+  {algo:'SSIM',kind:'FR',score:0.687,unit:'',agg:{n:1},per_frame:[0.687],label:'高斯模糊'},
+  {algo:'NIQE-Lite',kind:'NR',score:8.45,unit:'',agg:{n:1},per_frame:[8.45],label:'自然图像'},
+];
+
+// ── State ──
+let mode='FR',algo='PSNR',stride=1,maxFrames=60;
+let refFile=null,disFile=null,currentResult=null,taskId=null,hiScores=[],isNewRecord=false;
+let demoActive=false,demoTimer=null,demoIdx=0,lastScoreTime=0;
+
+// ── SOUND ──
+let audioCtx=null;
+function ac(){return audioCtx||(audioCtx=new(window.AudioContext||window.webkitAudioContext)());}
+function beep(f,d,t='square',v=.06,s=0){
+  const ctx=ac(),tn=ctx.currentTime;
+  const o=ctx.createOscillator(),g=ctx.createGain();
+  o.type=t;g.gain.setValueAtTime(v,tn);g.gain.linearRampToValueAtTime(0,tn+d);
+  o.frequency.setValueAtTime(f,tn);if(s)o.frequency.linearRampToValueAtTime(f+s,tn+d);
+  o.connect(g);g.connect(ctx.destination);o.start(tn);o.stop(tn+d);
+}
+function sClick(){beep(200,.03,'square',.03);}
+function sHover(){beep(600,.04,'square',.02);}
+function sCoin(){beep(600,.15,'square',.06);setTimeout(()=>beep(900,.15,'square',.06),100);}
+function sTick(){beep(800,.1,'square',.05);}
+function sGo(){beep(1200,.3,'square',.08,400);}
+function sVictory(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,.2,'square',.05),i*150));}
+function sSuperVic(){[523,659,784,1047,784,1047,1319,1568].forEach((f,i)=>setTimeout(()=>beep(f,.18,'square',.06),i*120));}
+function sDing(){beep(1200,.08,'square',.04);beep(1600,.12,'square',.04);}
+
+// ── STARFIELD ──
+const starsC=document.getElementById('stars'),sctx=starsC.getContext('2d');
+let starArr=[];
+function initStars(){
+  starsC.width=window.innerWidth;starsC.height=window.innerHeight;
+  starArr=Array.from({length:200},()=>({x:Math.random()*starsC.width,y:Math.random()*starsC.height,s:Math.random()*1.8+.5,sp:Math.random()*.8+.1,b:Math.random()*200+40}));
+}
+function drawStars(){
+  sctx.clearRect(0,0,starsC.width,starsC.height);
+  starArr.forEach(p=>{p.y+=p.sp;if(p.y>starsC.height+2){p.y=-2;p.x=Math.random()*starsC.width;}p.b+=(Math.random()-.5)*8;p.b=Math.max(30,Math.min(255,p.b));sctx.fillStyle=`rgba(255,255,255,${p.b/255})`;sctx.beginPath();sctx.arc(p.x,p.y,p.s,0,Math.PI*2);sctx.fill();});
+  requestAnimationFrame(drawStars);
+}
+initStars();drawStars();
+window.addEventListener('resize',initStars);
+
+// ── CRT glitch spots ──
+function crtGlitch(){
+  const g=document.getElementById('gspot');
+  if(Math.random()<.15){g.style.left=Math.random()*90+'%';g.style.top=Math.random()*90+'%';g.style.width=(60+Math.random()*200)+'px';g.classList.add('on');setTimeout(()=>g.classList.remove('on'),80+Math.random()*150);}
+  setTimeout(crtGlitch,1500+Math.random()*3000);
+}
+crtGlitch();
+
+// ── CRT breathing ──
+let crtAlpha=10;
+function crtBreathe(){
+  crtAlpha=10+3*Math.sin(Date.now()*0.001);
+  document.getElementById('crt').style.background=`repeating-linear-gradient(0deg,rgba(0,0,0,${crtAlpha/255}) 0px,rgba(0,0,0,${crtAlpha/255}) 1px,transparent 1px,transparent 4px)`;
+  requestAnimationFrame(crtBreathe);
+}
+crtBreathe();
+
+// ── DEMO MODE ──
+function startDemo(){demoActive=true;document.getElementById('demo-label').classList.add('on');demoCycle();}
+function stopDemo(){demoActive=false;document.getElementById('demo-label').classList.remove('on');if(demoTimer)clearTimeout(demoTimer);}
+function demoCycle(){
+  if(!demoActive)return;
+  const d=DEMO_RESULTS[demoIdx%DEMO_RESULTS.length];demoIdx++;
+  doFlash(()=>{
+    if(!demoActive)return;
+    showScreen('result');showResult(d,computeRank(d.score,d.algo));
+    demoTimer=setTimeout(demoCycle,4000);
+  });
+}
+
+// ── NAV ──
+let currentScreen='title';
+function showScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  currentScreen=name;
+  stopDemo();
+  if(name==='title')titleEntrance();
+}
+function flash(cb=false,w=false){
+  const f=document.getElementById('flash');f.classList.add('active');if(w)f.classList.add('white');
+  setTimeout(()=>{f.classList.remove('active','white');if(cb)cb();},100);
+}
+function doFlash(cb){
+  const cont=document.getElementById('cd');const border=document.getElementById('crt-border');
+  cont.textContent='';cont.classList.add('show');border.classList.add('show', 'tight');
+  document.getElementById('flash').classList.add('white');
+  setTimeout(()=>{cont.classList.remove('show');border.classList.remove('show','tight');document.getElementById('flash').classList.remove('white');if(cb)cb();},150);
+}
+
+// ── TITLE ENTRANCE ──
+function titleEntrance(){
+  const letters=document.querySelectorAll('#title-main .title-letter');
+  letters.forEach(l=>l.classList.remove('drop'));
+  document.querySelectorAll('#badge-row .badge').forEach(b=>b.classList.remove('pop'));
+  requestAnimationFrame(()=>{
+    letters.forEach((l,i)=>{setTimeout(()=>{l.classList.add('drop');if(i===0)sDing();},i*60);});
+    document.querySelectorAll('#badge-row .badge').forEach((b,i)=>{setTimeout(()=>{b.classList.add('pop');sClick();},1200+i*120);});
+  });
+}
+
+// ── Hi-score ──
+function hiOverlay(){
+  try{hiScores=JSON.parse(localStorage.getItem('vqa_web_scores')||'[]');}catch(e){hiScores=[];}
+  if(hiScores.length){const s=hiScores[0];document.getElementById('hi-score-val').textContent=s.score.toFixed(4)+' '+s.unit;}
+}
+hiOverlay();
+function saveScore(score,algo,unit){hiScores.push({score,algo,unit});hiScores.sort((a,b)=>b.score-a.score);hiScores=hiScores.slice(0,10);localStorage.setItem('vqa_web_scores',JSON.stringify(hiScores));hiOverlay();}
+
+function showHistory(algoName){
+  const section=document.getElementById('history-section');
+  if(!section)return;
+  if(hiScores.length<2){section.innerHTML='';return;}
+  const same=hiScores.filter(s=>s.algo===algoName);
+  if(same.length<2){section.innerHTML='';return;}
+  const top5=same.slice(0,5);
+  let html=`<div style="font-size:10px;color:var(--muted);margin-bottom:6px">历史记录 · ${algoName}</div>`;
+  html+='<div style="display:flex;align-items:flex-end;justify-content:center;gap:10px;height:50px;border:1px solid var(--dim);border-radius:4px;padding:4px 8px;background:rgba(255,255,255,.01)">';
+  const mx=Math.max(...top5.map(s=>s.score))||1;
+  top5.forEach((s,i)=>{
+    const h=Math.max(8,(s.score/mx)*40);
+    html+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%">
+      <div style="width:100%;height:${h}px;background:var(--neon);border-radius:2px 2px 0 0;opacity:${0.4+i/top5.length*.6}"></div>
+      <span style="font-size:7px;color:var(--muted);margin-top:2px">${s.score.toFixed(2)}</span></div>`;
+  });
+  html+='</div>';
+  section.innerHTML=html;
+}
+
+// ── Achievements ──
+const ACH_DEFS=[
+  {id:'first_run',icon:'🥇',name:'首次评测',desc:'完成第一次评估'},
+  {id:'vsfa_first',icon:'🤖',name:'VSFA 首战',desc:'使用 VSFA 算法评测'},
+  {id:'five_runs',icon:'💯',name:'评测老手',desc:'累计完成 5 次评估'},
+  {id:'dual_mode',icon:'🔄',name:'FR/NR 双修',desc:'分别用过 FR 和 NR 模式'},
+  {id:'s_rank',icon:'⭐',name:'S 级达人',desc:'获得一次 S 级评分'},
+  {id:'all_algos',icon:'🎯',name:'全能选手',desc:'使用全部 4 种算法'},
+  {id:'new_record',icon:'🔝',name:'新纪录',desc:'刷新历史最高分'},
+  {id:'frame_master',icon:'📊',name:'帧数狂魔',desc:'一次评估超过 100 帧'},
+];
+let achState={},runCount=0,algoUsed={};
+// Load from localStorage
+try{
+  const saved=JSON.parse(localStorage.getItem('vqa_ach')||'{}');
+  Object.assign(achState,saved);
+  runCount=saved._runCount||0;
+  algoUsed=saved._algoUsed||{};
+}catch(e){}
+function saveAch(){achState._runCount=runCount;achState._algoUsed=algoUsed;localStorage.setItem('vqa_ach',JSON.stringify(achState));}
+
+function checkAch(name,msg){
+  if(achState[name])return;
+  achState[name]=true;saveAch();
+  const p=document.getElementById('ach-popup');p.textContent='🏆 '+msg;p.classList.add('show');
+  setTimeout(()=>p.classList.remove('show'),2500);sDing();
+}
+
+function renderAchPanel(){
+  const g=document.getElementById('ach-grid');
+  if(!g)return;
+  const unlocked=ACH_DEFS.filter(a=>achState[a.id]).length;
+  document.getElementById('ach-count').textContent=`已解锁 ${unlocked}/${ACH_DEFS.length}`;
+  g.innerHTML=ACH_DEFS.map(a=>{
+    const on=!!achState[a.id];
+    return `<div class="ach-card${on?' unlocked':' locked'}">
+      ${on?`<div class="ach-icon">${a.icon}</div>`:`<div class="ach-lock">🔒</div>`}
+      <div class="ach-name">${a.name}</div>
+      <div class="ach-desc">${a.desc}</div>
+    </div>`;
+  }).join('');
+}
+
+// Button handlers
+document.getElementById('btn-ach').addEventListener('click',()=>{renderAchPanel();document.getElementById('ach-panel').classList.add('show');sClick();});
+document.getElementById('btn-ach-close').addEventListener('click',()=>{document.getElementById('ach-panel').classList.remove('show');sClick();});
+
+// Help panel
+document.getElementById('btn-help').addEventListener('click',()=>{document.getElementById('help-panel').classList.add('show');sClick();});
+document.getElementById('btn-help-close').addEventListener('click',()=>{document.getElementById('help-panel').classList.remove('show');sClick();});
+
+// ── SELECT ──
+function updateSelect(){
+  const frAlgos={PSNR:true,SSIM:true},nrAlgos={'NIQE-Lite':true,VSFA:true,'VSFA-V':true};
+  const list=mode==='FR'?Object.keys(frAlgos):Object.keys(nrAlgos);
+  const row=document.getElementById('algo-row');
+  row.innerHTML=list.map(a=>{
+    const cls=`algo-btn${a===algo?' sel':''}`;
+    const lbl=a==='VSFA-V'?a+' ℹ':a;
+    const ttl=a==='VSFA-V'?' title="视频级模型，仅支持视频输入"' : '';
+    return `<button class="${cls}" data-algo="${a}"${ttl}>${lbl}</button>`;
+  }).join('');
+  if(!list.includes(algo)){algo=list[0];row.querySelector('.algo-btn').classList.add('sel');}
+  row.querySelectorAll('.algo-btn').forEach(b=>b.addEventListener('click',()=>{row.querySelectorAll('.algo-btn').forEach(bb=>bb.classList.remove('sel'));b.classList.add('sel');algo=b.dataset.algo;sClick();}));
+  document.getElementById('mode-fr').classList.toggle('sel',mode==='FR');
+  document.getElementById('mode-nr').classList.toggle('sel',mode==='NR');
+  const refBox=document.getElementById('preview-ref');
+  if(mode==='NR')refBox.classList.add('hidden');else refBox.classList.remove('hidden');
+  document.getElementById('game-title').textContent=algo+' · '+mode+' MODE';
+  updateAlgoInfo(algo,mode);
+}
+document.getElementById('mode-fr').addEventListener('click',()=>{mode='FR';sClick();updateSelect();});
+document.getElementById('mode-nr').addEventListener('click',()=>{mode='NR';sClick();updateSelect();});
+document.getElementById('param-stride').addEventListener('input',e=>{stride=parseInt(e.target.value)||1;});
+document.getElementById('param-maxf').addEventListener('input',e=>{maxFrames=parseInt(e.target.value)||0;});
+
+// ── Algorithm info banner ──
+const ALGO_INFO={
+  PSNR:{kind:'FR',dir:'📈 越大越好',body:'峰值信噪比 · 逐像素均方误差 · 范围 15~50 dB · ≥45 极好 ≥35 良好 ≥25 尚可'},
+  SSIM:{kind:'FR',dir:'📈 越大越好',body:'结构相似度 · 模拟人眼亮度/对比度/结构感知 · 范围 0~1 · ≥0.95 极好 ≥0.85 良好'},
+  'NIQE-Lite':{kind:'NR',dir:'📉 越小越好',body:'轻量无参考 · 自然统计特征偏离分析 · 范围 ~3~30 · ≤10 极好 ≤25 良好'},
+  VSFA:{kind:'NR',dir:'📉 越小越好',body:'深度学习无参考 · VGG16 逐帧推理 → DMOS · ≤10 极好 ≤25 良好（需PyTorch）'},
+  'VSFA-V':{kind:'NR',dir:'📈 越大越好',body:'视频级深度学习 · 4帧时序采样 + VGG16 聚合 → MOS · 仅视频 · 越大越好'},
+};
+function updateAlgoInfo(algo,mode){
+  const info=ALGO_INFO[algo]||{kind:'FR',dir:'--',body:''};
+  const el=document.getElementById('algo-info');
+  el.className='algo-info '+(mode==='FR'?'fr':'nr');
+  document.getElementById('ai-name').textContent=algo;
+  document.getElementById('ai-mode').textContent=mode==='FR'?'FR 全参考':'NR 无参考';
+  document.getElementById('ai-dir').textContent=info.dir;
+  document.getElementById('ai-body').textContent=info.body;
+}
+document.getElementById('ai-header').addEventListener('click',()=>{
+  const el=document.getElementById('algo-info');
+  const tog=document.getElementById('ai-toggle');
+  el.classList.toggle('collapsed');
+  tog.classList.toggle('open');
+  sClick();
+});
+
+// ── FILE ──
+function setupDnD(elId,inpId,imgId,hintId,side){
+  const el=document.getElementById(elId),img=document.getElementById(imgId),hint=document.getElementById(hintId);
+  el.addEventListener('click',()=>document.getElementById(inpId).click());
+  el.addEventListener('dragover',e=>{e.preventDefault();el.style.borderColor='var(--green)';});
+  el.addEventListener('dragleave',()=>el.style.borderColor=side==='ref'?'var(--pink)':'var(--neon)');
+  el.addEventListener('drop',async e=>{e.preventDefault();el.style.borderColor=side==='ref'?'var(--pink)':'var(--neon)';const f=e.dataTransfer.files[0];if(f)await handleFile(f,img,hint,side);});
+  document.getElementById(inpId).addEventListener('change',async e=>{const f=e.target.files[0];if(f)await handleFile(f,img,hint,side);});
+}
+async function handleFile(file,img,hint,side){
+  const fd=new FormData();fd.append('file',file);
+  try{
+    const r=await fetch(API+'/api/upload',{method:'POST',body:fd});const data=await r.json();
+    if(data.error){logMsg(data.error);return;}
+    if(side==='ref')refFile=data;else disFile=data;
+    if(data.preview){img.src=data.preview;hint.style.display='none';}
+    else{const r2=await fetch(API+'/api/preview/'+data.file_id);const pdata=await r2.json();if(pdata.preview){img.src=pdata.preview;hint.style.display='none';}}
+    logMsg('[ui] 已加载 '+file.name,'ui');sClick();
+  }catch(e){logMsg('[err] 上传失败: '+e.message,'err');}
+}
+setupDnD('preview-ref','file-ref','img-ref','hint-ref','ref');
+setupDnD('preview-dis','file-dis','img-dis','hint-dis','dis');
+
+// ── LOG ──
+function logMsg(msg,cls=''){const log=document.getElementById('log'),d=document.createElement('div');d.textContent=msg;if(cls)d.className=cls;log.appendChild(d);log.scrollTop=log.scrollHeight;}
+
+// ── BUTTONS ──
+document.getElementById('btn-start').addEventListener('click',()=>{stopDemo();sCoin();flash(()=>{showScreen('select');updateSelect();});});
+document.getElementById('btn-fight').addEventListener('click',()=>{sClick();doFlash(()=>{showScreen('game');resetGame();if(mode==='FR'){const vb=document.getElementById('vs-banner');vb.textContent='REF ⚡ VS ⚡ DIS';vb.classList.add('show');setTimeout(()=>vb.classList.remove('show'),2000);}});});
+document.getElementById('btn-back-game').addEventListener('click',()=>{sClick();flash(()=>showScreen('title'));});
+document.getElementById('btn-retry').addEventListener('click',()=>{sClick();flash(()=>{showScreen('game');softReset();});});
+document.getElementById('btn-result-back').addEventListener('click',()=>{sClick();flash(()=>showScreen('title'));});
+
+// ── GAME ──
+function resetGame(){
+  refFile=null;disFile=null;
+  document.getElementById('img-ref').src='';document.getElementById('img-dis').src='';
+  document.getElementById('hint-ref').style.display='';document.getElementById('hint-dis').style.display='';
+  document.getElementById('sb-score').textContent='--';document.getElementById('sb-rank').textContent='--';document.getElementById('sb-frames').textContent='0';
+  document.getElementById('log').innerHTML='';document.querySelectorAll('.prog-seg').forEach(s=>{s.classList.remove('on','bounce','latest');});
+  currentResult=null;taskId=null;
+  document.getElementById('btn-run').disabled=false;document.getElementById('btn-export').disabled=true;
+  document.getElementById('preview-ref').classList.toggle('hidden',mode==='NR');initCurve([]);
+  updateAlgoInfo(algo,mode);
+}
+
+function softReset(){
+  // 保留文件、预览图、曲线、记分板，只重置进度条和日志
+  document.getElementById('log').innerHTML='';
+  document.querySelectorAll('.prog-seg').forEach(s=>{s.classList.remove('on','bounce','latest');});
+  currentResult=null;taskId=null;
+  document.getElementById('btn-run').disabled=false;
+  if(refFile||disFile)logMsg('[ui] 保留上一轮文件/分数/曲线，可重新评估','ui');
+}
+
+function initCurve(scores){
+  const c=document.getElementById('curve');c.width=c.offsetWidth;c.height=120;
+  const ctx=c.getContext('2d');ctx.fillStyle='#0a0a1a';ctx.fillRect(0,0,c.width,c.height);
+  if(!scores.length)return;
+  const pad=30,w=c.width-pad*2,h=c.height-pad*2;
+  const min=Math.min(...scores),max=Math.max(...scores),range=max-min||1;
+  const mean=scores.reduce((a,b)=>a+b,0)/scores.length;
+
+  // Grid lines
+  ctx.strokeStyle='rgba(51,65,85,0.3)';ctx.lineWidth=0.5;
+  for(let i=1;i<4;i++){const y=pad+h*i/4;ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(c.width-pad,y);ctx.stroke();}
+  for(let i=1;i<6;i++){const x=pad+w*i/6;ctx.beginPath();ctx.moveTo(x,pad);ctx.lineTo(x,pad+h);ctx.stroke();}
+
+  // Gradient fill
+  const grad=ctx.createLinearGradient(0,pad,0,pad+h);
+  grad.addColorStop(0,'rgba(0,240,255,0.15)');grad.addColorStop(1,'rgba(0,240,255,0.02)');
+  ctx.beginPath();
+  scores.forEach((s,i)=>{const x=pad+(i/Math.max(1,scores.length-1))*w;const y=pad+h-((s-min)/range)*h;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});
+  ctx.lineTo(pad+w,pad+h);ctx.lineTo(pad,pad+h);ctx.closePath();ctx.fillStyle=grad;ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  scores.forEach((s,i)=>{const x=pad+(i/Math.max(1,scores.length-1))*w;const y=pad+h-((s-min)/range)*h;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});
+  ctx.strokeStyle='#0fff50';ctx.lineWidth=2;ctx.stroke();
+
+  // Mean line
+  const my=pad+h-((mean-min)/range)*h;
+  ctx.setLineDash([4,4]);ctx.strokeStyle='rgba(255,230,0,0.5)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(pad,my);ctx.lineTo(pad+w,my);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#ffe600';ctx.font='9px monospace';
+  ctx.fillText('avg '+mean.toFixed(2),pad+w-50,my-4);
+}
+
+document.getElementById('btn-run').addEventListener('click',async()=>{
+  if(mode==='FR'&&(!refFile||!disFile)){logMsg('[err] FR 模式需要参考文件和测试文件','err');return;}
+  if(mode==='NR'&&!disFile){logMsg('[err] 请导入测试文件','err');return;}
+  logMsg('[ui] ⚔ 准备评估...','ui');
+  document.getElementById('vs-banner').classList.toggle('show',mode==='FR');
+  if(mode==='FR')document.getElementById('vs-banner').textContent='REF ⚡ VS ⚡ DIS';
+  countdown(async()=>{document.getElementById('btn-run').disabled=true;await doScore();});
+});
+
+// ── Upgraded countdown ──
+function countdown(cb){
+  const cd=document.getElementById('cd'),border=document.getElementById('crt-border');
+  cd.classList.add('show');border.classList.add('show');
+  const steps=['3','2','1','GO!'];let i=0;
+  function flashWhite(){document.getElementById('flash').classList.add('white');setTimeout(()=>document.getElementById('flash').classList.remove('white'),60);}
+  cd.textContent=steps[0];flashWhite();sTick();
+  function next(){
+    i++;cd.textContent=steps[i];cd.style.fontSize=steps[i]==='GO!'?'80px':'100px';flashWhite();
+    if(i===3)sGo();else sTick();
+    if(i<3){border.classList.toggle('tight');setTimeout(next,600);}
+    else setTimeout(()=>{cd.classList.remove('show');border.classList.remove('show','tight');if(cb)cb();},500);
+  }
+  setTimeout(next,600);
+}
+
+// ── SCORING ──
+async function doScore(){
+  logMsg('[worker] 开始评估 '+algo+'...','worker');
+  const segs=document.querySelectorAll('.prog-seg');segs.forEach(s=>s.classList.remove('on','bounce','latest'));
+  let lastOn=0;
+
+  const body={algo,kind:mode,target:disFile.file_id,reference:mode==='FR'?refFile.file_id:null,stride,max_frames:maxFrames||null};
+  let r=await fetch(API+'/api/score',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  let data=await r.json();
+  if(data.error){logMsg('[err] '+data.error,'err');return;}
+  taskId=data.task_id;
+  if(data.frame_hint)logMsg('[ui] 视频共 '+data.frame_hint+' 帧','ui');
+
+  if(mode==='FR'){document.getElementById('vs-banner').textContent='REF ⚡ VS ⚡ DIS';document.getElementById('vs-banner').classList.add('show');}
+  lastScoreTime=Date.now();
+
+  const es=new EventSource(API+'/api/score/stream/'+taskId);
+  es.onmessage=(e)=>{
+    try{const upd=JSON.parse(e.data);
+    if(upd.status==='running'||upd.status==='pending'){
+      const onSegs=Math.floor(upd.progress*segs.length);
+      for(let i=0;i<segs.length;i++){
+        if(i<onSegs){segs[i].classList.add('on');
+          const pct=i/segs.length;segs[i].classList.remove('low','mid','high');
+          if(pct<.3)segs[i].classList.add('low');
+          else if(pct<.7)segs[i].classList.add('mid');
+          else segs[i].classList.add('high');
+        }else segs[i].classList.remove('on','low','mid','high');
+      }
+      if(onSegs>lastOn&&onSegs<=segs.length){
+        segs.forEach(s=>s.classList.remove('latest','bounce'));
+        segs[onSegs-1].classList.add('bounce','latest');
+        lastOn=onSegs;
+      }
+      // Add sample dot to curve canvas
+      if(onSegs>0&&onSegs!==lastOn){
+        const c=document.getElementById('curve'),ctx=c.getContext('2d');
+        ctx.fillStyle='rgba(0,255,80,0.5)';ctx.beginPath();
+        ctx.arc(onSegs/segs.length*c.width,c.height-10-Math.random()*10,2,0,Math.PI*2);ctx.fill();
+      }
+    }else if(upd.status==='done'&&upd.result){es.close();currentResult=upd.result;onScoreDone(upd.result);}
+    else if(upd.status==='error'){es.close();logMsg('[err] '+upd.error,'err');document.getElementById('btn-run').disabled=false;}
+    }catch(ex){}
+  };
+  es.onerror=()=>{es.close();logMsg('[err] 连接中断','err');};
+}
+
+function rollScore(el,target,unit='',ms=800){
+  const start=Date.now();
+  function tick(){
+    const elapsed=Date.now()-start,t=Math.min(elapsed/ms,1);
+    const val=t<1?target* (1-Math.pow(1-t,3)):target; // ease-out cubic
+    el.textContent=val.toFixed(2)+' '+unit;
+    if(t<1)requestAnimationFrame(tick);
+    else el.textContent=target.toFixed(4)+' '+unit;
+  }
+  requestAnimationFrame(tick);
+}
+
+function onScoreDone(result){
+  logMsg('[score] 评估完成！','score');
+  const segs=document.querySelectorAll('.prog-seg');segs.forEach(s=>{s.classList.add('on');s.classList.remove('bounce','latest');});
+  const score=result.score,unit=result.unit||'',agg=result.agg||{},n=agg.n||1,rank=computeRank(score,algo);
+  rollScore(document.getElementById('sb-score'),score,unit);
+  document.getElementById('sb-rank').textContent=rank;document.getElementById('sb-rank').style.color=rankColor(rank);
+  document.getElementById('sb-frames').textContent=n;document.getElementById('btn-export').disabled=false;
+  initCurve(result.per_frame||[]);
+  isNewRecord=false;const oldBest=hiScores.length?hiScores[0].score:0;if(score>oldBest)isNewRecord=true;
+  document.body.classList.add('shaking');setTimeout(()=>document.body.classList.remove('shaking'),600);
+  try{sVictory()}catch(e){}
+  runCount++;if(runCount>=5)checkAch('five_runs','评测老手');
+  if(algo==='VSFA')checkAch('vsfa_first','VSFA 首战');
+  checkAch('first_run','首次评测！');
+  setTimeout(()=>{showScreen('result');showResult(result,rank);},1000);
+}
+
+// ── RESULT ──
+function showResult(result,rank){
+  const b=document.getElementById('result-banner');
+  if(isNewRecord){b.textContent='★ 新纪录！★';b.classList.add('gold');sSuperVic();}else{b.textContent='关卡通过！';b.classList.remove('gold');}
+  document.getElementById('result-algo').textContent=result.algorithm+' ('+(result.kind||'')+')';
+  document.getElementById('result-score').textContent=(result.score||0).toFixed(4)+' '+(result.unit||'');
+  document.getElementById('result-rank').textContent=rank;document.getElementById('result-rank').style.color=rankColor(rank);
+  document.getElementById('result-meta').textContent='帧数: '+(result.agg?.n||1)+' · 耗时: '+(result.elapsed_sec||'--')+'s';
+  // Re-trigger fall animations
+  document.querySelectorAll('.fall-item').forEach(el=>{el.classList.remove('fall-item');void el.offsetWidth;el.classList.add('fall-item');});
+  // Rank spin
+  spinRank(rank);
+  // Fight text
+  const texts={S:'★ FLAWLESS ★',A:'★ EXCELLENT ★','B+':'★ GREAT ★',B:'★ NICE ★',C:'OK',D:'...'};
+  setTimeout(()=>spawnFightText(texts[rank]||texts['B']),600);
+  // KO for S
+  if(rank==='S'||isNewRecord)setTimeout(koSplit,400);
+  // Particles
+  for(let i=0;i<5;i++)setTimeout(spawnParticles,i*250);
+  // Save & history
+  saveScore(result.score,result.algorithm,result.unit);
+  showHistory(result.algo||algo);
+  document.getElementById('btn-run').disabled=false;
+}
+
+function spinRank(rank){
+  const el=document.getElementById('result-rank'),letters=rank.split('');
+  el.innerHTML=letters.map((l,i)=>`<span class="spin-letter" style="animation-delay:${i*150}ms">${l}</span>`).join('');
+  requestAnimationFrame(()=>{el.querySelectorAll('.spin-letter').forEach(l=>{l.classList.add('jackpot');sDing();});});
+}
+
+function koSplit(){
+  const s=document.getElementById('ko-split'),p=document.getElementById('ko-perfect');
+  s.classList.add('show','split');p.classList.add('show');
+  setTimeout(()=>{s.classList.remove('split');p.classList.remove('show');},1500);
+  setTimeout(()=>{s.classList.remove('show');},2200);
+}
+
+function spawnFightText(text){
+  const el=document.createElement('div');el.className='fight-text';el.textContent=text;el.style.top='55%';document.body.appendChild(el);setTimeout(()=>el.remove(),2200);
+}
+function spawnParticles(){
+  for(let i=0;i<25;i++){const p=document.createElement('div');p.className='particle';p.style.cssText=`--dx:${(Math.random()-.5)*300}px;--dy:${(Math.random()-.5)*300}px;left:${40+Math.random()*70}%;top:${30+Math.random()*40}%;width:${3+Math.random()*5}px;height:${3+Math.random()*5}px;background:${['#0fff50','#00f0ff','#ff2d95','#ffe600'][Math.floor(Math.random()*4)]};`;document.body.appendChild(p);setTimeout(()=>p.remove(),1100);}
+}
+
+// ── RANK ──
+function computeRank(score,algo){
+  if(algo==='PSNR'){if(score>=45)return'S';if(score>=35)return'A';if(score>=25)return'B+';if(score>=18)return'B';return'C';}
+  else if(algo==='SSIM'){if(score>=.95)return'S';if(score>=.85)return'A';if(score>=.7)return'B+';if(score>=.5)return'B';if(score>=.3)return'C';return'D';}
+  else if(algo==='VSFA-V'){if(score>=80)return'S';if(score>=60)return'A';if(score>=40)return'B+';if(score>=25)return'B';if(score>=15)return'C';return'D';}
+}
+function rankColor(r){return{S:'#0fff50',A:'#0fff50','B+':'#ffe600',B:'#ffe600',C:'#f87171',D:'#f87171'}[r]||'#64748b';}
+
+// ── EXPORT ──
+document.getElementById('btn-export').addEventListener('click',()=>{if(!currentResult)return;const b=new Blob([JSON.stringify(currentResult,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='vqa_report.json';a.click();sClick();});
+document.getElementById('btn-reset').addEventListener('click',()=>{resetGame();sClick();});
+
+// ── KEYBOARD ──
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'||e.key===' '){e.preventDefault();if(currentScreen==='title'){document.getElementById('btn-start').click();}else if(currentScreen==='result'){document.getElementById('btn-retry').click();}}
+  else if(e.key==='Escape'){if(currentScreen!=='title'){sClick();flash(()=>showScreen('title'));}}
+});
+
+// ── INIT ──
+for(let i=0;i<20;i++){const s=document.createElement('div');s.className='prog-seg';document.getElementById('progress-bar').appendChild(s);}
+updateSelect();titleEntrance();
+
+// Press start blink
+let blinkTick=0;
+function blink(){blinkTick++;const ps=document.getElementById('press-start');if(ps)ps.style.opacity=(blinkTick%40<28)?'1':'.16';requestAnimationFrame(blink);}
+blink();
+
+// DEMO 已关闭——需要时可手动点"演示"按钮 
+</script>
+</body>
+</html>
