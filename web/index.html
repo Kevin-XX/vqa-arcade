@@ -556,27 +556,35 @@ body{
   </div>
 
   <div class="help-section">
-    <h3>🧪 五种算法</h3>
+    <h3>🧪 七种算法</h3>
     <div class="help-grid">
       <div class="help-card">
         <div class="h-name" style="color:var(--neon)">PSNR <span class="h-tag tag-fr">FR</span></div>
-        <div class="h-desc">峰值信噪比。逐像素算误差，最简单的指标。单位 dB，<b>越大越好</b>（≥45 极好）。</div>
+        <div class="h-desc">峰值信噪比。逐像素算误差，单位 dB，<b>越大越好</b>（≥45 极好）。</div>
       </div>
       <div class="help-card">
         <div class="h-name" style="color:var(--neon)">SSIM <span class="h-tag tag-fr">FR</span></div>
-        <div class="h-desc">结构相似度。模拟人眼对亮度/对比度/结构的感知，范围 0~1，<b>越大越好</b>。</div>
+        <div class="h-desc">结构相似度。亮度/对比度/结构三通道对比，0~1，<b>越大越好</b>。</div>
+      </div>
+      <div class="help-card">
+        <div class="h-name" style="color:var(--neon)">VMAF <span class="h-tag tag-fr">FR</span></div>
+        <div class="h-desc">深度学习全参考。ResNet50 双分支 + 特征差异回归，0~100 分，<b>越大越好</b>。</div>
+      </div>
+      <div class="help-card">
+        <div class="h-name" style="color:var(--neon)">VMAF-V <span class="h-tag tag-fr">FR</span> <span class="h-tag tag-vid">仅视频</span></div>
+        <div class="h-desc">视频级深度学习全参考。ResNet18 + 8 帧时序池化，0~100 分，<b>越大越好</b>。</div>
       </div>
       <div class="help-card">
         <div class="h-name" style="color:var(--yellow)">NIQE-Lite <span class="h-tag tag-nr">NR</span></div>
-        <div class="h-desc">轻量无参考评分。分析图像自然统计特征偏离程度，~3~30 分，<b>越小越好</b>。</div>
+        <div class="h-desc">轻量无参考。自然统计特征偏离分析，~3~30 分，<b>越小越好</b>。</div>
       </div>
       <div class="help-card">
         <div class="h-name" style="color:var(--yellow)">VSFA <span class="h-tag tag-nr">NR</span></div>
-        <div class="h-desc">深度学习无参考（VGG16 逐帧推理）。输出 DMOS 分数，<b>越小越好</b>。</div>
+        <div class="h-desc">深度学习无参考。VGG16 逐帧推理，输出 DMOS，<b>越小越好</b>。</div>
       </div>
       <div class="help-card">
         <div class="h-name" style="color:var(--yellow)">VSFA-V <span class="h-tag tag-nr">NR</span> <span class="h-tag tag-vid">仅视频</span></div>
-        <div class="h-desc">视频级深度学习模型。固定采 4 帧时序聚合，直接输出 MOS，<b>越大越好</b>。⚠ 仅支持视频。</div>
+        <div class="h-desc">视频级深度学习。4 帧时序采样 + VGG16 聚合，MOS 越大越好。仅视频。</div>
       </div>
     </div>
   </div>
