@@ -792,13 +792,14 @@ document.getElementById('btn-help-close').addEventListener('click',()=>{document
 
 // ── SELECT ──
 function updateSelect(){
-  const frAlgos={PSNR:true,SSIM:true},nrAlgos={'NIQE-Lite':true,VSFA:true,'VSFA-V':true};
+  const frAlgos={PSNR:true,SSIM:true,VMAF:true,'VMAF-V':true},nrAlgos={'NIQE-Lite':true,VSFA:true,'VSFA-V':true};
   const list=mode==='FR'?Object.keys(frAlgos):Object.keys(nrAlgos);
   const row=document.getElementById('algo-row');
   row.innerHTML=list.map(a=>{
     const cls=`algo-btn${a===algo?' sel':''}`;
-    const lbl=a==='VSFA-V'?a+' ℹ':a;
-    const ttl=a==='VSFA-V'?' title="视频级模型，仅支持视频输入"' : '';
+    const vidOnly=a==='VSFA-V'||a==='VMAF-V';
+    const lbl=vidOnly?a+' ℹ':a;
+    const ttl=vidOnly?' title="视频级模型，仅支持视频输入"' : '';
     return `<button class="${cls}" data-algo="${a}"${ttl}>${lbl}</button>`;
   }).join('');
   if(!list.includes(algo)){algo=list[0];row.querySelector('.algo-btn').classList.add('sel');}
@@ -819,6 +820,8 @@ document.getElementById('param-maxf').addEventListener('input',e=>{maxFrames=par
 const ALGO_INFO={
   PSNR:{kind:'FR',dir:'📈 越大越好',body:'峰值信噪比 · 逐像素均方误差 · 范围 15~50 dB · ≥45 极好 ≥35 良好 ≥25 尚可'},
   SSIM:{kind:'FR',dir:'📈 越大越好',body:'结构相似度 · 模拟人眼亮度/对比度/结构感知 · 范围 0~1 · ≥0.95 极好 ≥0.85 良好'},
+  VMAF:{kind:'FR',dir:'📈 越大越好',body:'深度学习全参考 · ResNet50 双分支 + 特征差异回归 · 0~100分 · ≥85优秀 ≥70良好'},
+  'VMAF-V':{kind:'FR',dir:'📈 越大越好',body:'深度学习视频全参考 · ResNet18 + 8帧时序池化 · 0~100分 · ≥85优秀 · 仅视频'},
   'NIQE-Lite':{kind:'NR',dir:'📉 越小越好',body:'轻量无参考 · 自然统计特征偏离分析 · 范围 ~3~30 · ≤10 极好 ≤25 良好'},
   VSFA:{kind:'NR',dir:'📉 越小越好',body:'深度学习无参考 · VGG16 逐帧推理 → DMOS · ≤10 极好 ≤25 良好（需PyTorch）'},
   'VSFA-V':{kind:'NR',dir:'📈 越大越好',body:'视频级深度学习 · 4帧时序采样 + VGG16 聚合 → MOS · 仅视频 · 越大越好'},
@@ -1080,6 +1083,8 @@ function computeRank(score,algo){
   if(algo==='PSNR'){if(score>=45)return'S';if(score>=35)return'A';if(score>=25)return'B+';if(score>=18)return'B';return'C';}
   else if(algo==='SSIM'){if(score>=.95)return'S';if(score>=.85)return'A';if(score>=.7)return'B+';if(score>=.5)return'B';if(score>=.3)return'C';return'D';}
   else if(algo==='VSFA-V'){if(score>=80)return'S';if(score>=60)return'A';if(score>=40)return'B+';if(score>=25)return'B';if(score>=15)return'C';return'D';}
+  else if(algo==='VMAF'||algo==='VMAF-V'){if(score>=85)return'S';if(score>=70)return'A';if(score>=55)return'B+';if(score>=40)return'B';if(score>=25)return'C';return'D';}
+  else{if(score<=10)return'S';if(score<=25)return'A';if(score<=40)return'B+';if(score<=55)return'B';if(score<=70)return'C';return'D';}
 }
 function rankColor(r){return{S:'#0fff50',A:'#0fff50','B+':'#ffe600',B:'#ffe600',C:'#f87171',D:'#f87171'}[r]||'#64748b';}
 

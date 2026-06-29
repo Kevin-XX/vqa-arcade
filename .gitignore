@@ -18,3 +18,4 @@ Thumbs.db
 
 # Large model files (>50MB) - store separately
 vqa/algos/VSFA_LIVE_best.pth
+vqa/algos/VMAF_*.pth
