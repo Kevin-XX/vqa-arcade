@@ -33,7 +33,7 @@ class _FrameEncoder(nn.Module):
     def __init__(self):
         super().__init__()
         backbone = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
-        self.extractor = nn.Sequential(
+        self.feature_extractor = nn.Sequential(
             backbone.conv1, backbone.bn1, backbone.relu, backbone.maxpool,
             backbone.layer1, backbone.layer2, backbone.layer3, backbone.layer4,
             backbone.avgpool,
@@ -41,7 +41,7 @@ class _FrameEncoder(nn.Module):
         self.out_dim = 512
 
     def forward(self, x):
-        return self.extractor(x).flatten(1)
+        return self.feature_extractor(x).flatten(1)
 
 
 class _VideoQualityModel(nn.Module):
