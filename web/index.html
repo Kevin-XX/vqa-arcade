@@ -400,6 +400,183 @@ body{
 .demo-label.on{opacity:.8;}
 
 .hidden{display:none!important}
+
+/* ═══════════════════════════════════════════════
+   SYNTHWAVE UPGRADE LAYER  (v2.1 RETRO-FUTURE)
+   ═══════════════════════════════════════════════ */
+
+/* #34 日落渐变光晕 — 标题后方粉/紫/青光球 */
+#sunset{
+  position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);
+  z-index:0;pointer-events:none;width:720px;height:720px;border-radius:50%;
+  background:radial-gradient(circle,
+    rgba(255,45,149,.20) 0%,
+    rgba(124,58,237,.16) 38%,
+    rgba(0,240,255,.06) 66%,
+    transparent 74%);
+  filter:blur(8px);
+  animation:sunsetPulse 7s ease-in-out infinite;
+}
+@keyframes sunsetPulse{0%,100%{opacity:.85;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.06)}}
+
+/* #32 Synthwave 透视网格地平面 — 缓慢向下滚动 */
+#grid{
+  position:fixed;left:0;right:0;bottom:0;height:48vh;z-index:0;
+  pointer-events:none;perspective:320px;overflow:hidden;
+  -webkit-mask-image:linear-gradient(transparent 0%,#000 38%);
+          mask-image:linear-gradient(transparent 0%,#000 38%);
+}
+#grid::before{
+  content:'';position:absolute;left:-60%;right:-60%;bottom:-2px;height:240%;
+  background-image:
+    linear-gradient(rgba(0,240,255,.42) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,45,149,.34) 1px,transparent 1px);
+  background-size:52px 52px;
+  transform:rotateX(74deg);transform-origin:bottom center;
+  animation:gridScroll 2.4s linear infinite;
+}
+@keyframes gridScroll{0%{background-position:0 0,0 0}100%{background-position:0 52px,0 0}}
+/* 地平线辉光 */
+#grid::after{
+  content:'';position:absolute;left:0;right:0;bottom:48vh;height:2px;
+  background:linear-gradient(90deg,transparent,var(--neon),var(--pink),var(--neon),transparent);
+  box-shadow:0 0 24px var(--neon),0 0 48px rgba(255,45,149,.5);opacity:.7;
+}
+
+/* #35 动态扫描线 + 移动光带 */
+.scanmove{
+  position:fixed;inset:0;z-index:1001;pointer-events:none;
+  background:repeating-linear-gradient(0deg,
+    rgba(0,240,255,.035) 0px,rgba(0,240,255,.035) 1px,
+    transparent 1px,transparent 3px);
+  mix-blend-mode:screen;opacity:.6;
+}
+.scanmove::after{
+  content:'';position:absolute;left:0;right:0;height:90px;top:-90px;
+  background:linear-gradient(rgba(0,240,255,0),rgba(0,240,255,.06),rgba(0,240,255,0));
+  animation:scanSweep 6.5s linear infinite;
+}
+@keyframes scanSweep{0%{top:-90px}100%{top:100%}}
+
+/* #36 故障 glitch 转场（应用于切换后的屏幕） */
+@keyframes glitchTrans{
+  0%{transform:translate(0);filter:none;clip-path:none}
+  15%{transform:translate(-4px,1px);filter:drop-shadow(3px 0 var(--pink)) drop-shadow(-3px 0 var(--neon))}
+  30%{transform:translate(4px,-2px);clip-path:inset(8% 0 22% 0)}
+  45%{transform:translate(-3px,0);filter:drop-shadow(-3px 0 var(--pink)) drop-shadow(3px 0 var(--neon));clip-path:inset(40% 0 30% 0)}
+  60%{transform:translate(2px,1px);clip-path:none}
+  80%{transform:translate(-1px,0);filter:drop-shadow(2px 0 var(--neon))}
+  100%{transform:translate(0);filter:none}
+}
+.glitching{animation:glitchTrans .36s steps(3,end);}
+
+/* #33 霓虹辉光体系统一 */
+.title-main{
+  text-shadow:0 0 6px var(--neon),0 0 14px var(--neon),0 0 28px rgba(0,240,255,.6),0 0 48px rgba(0,240,255,.35);
+}
+.title-sub{text-shadow:0 0 10px rgba(0,240,255,.5);}
+.title-box{
+  box-shadow:0 0 22px rgba(0,240,255,.28),0 0 60px rgba(0,240,255,.12),inset 0 0 22px rgba(0,240,255,.06);
+}
+.select-title{text-shadow:0 0 12px rgba(0,240,255,.55);}
+.badge{box-shadow:0 0 10px rgba(255,230,0,.25);text-shadow:0 0 8px rgba(255,230,0,.5);}
+.badge.pink{box-shadow:0 0 10px rgba(255,45,149,.3);text-shadow:0 0 8px rgba(255,45,149,.5);}
+.btn-start,.btn-fight{
+  box-shadow:0 0 16px rgba(15,255,80,.3),inset 0 0 14px rgba(15,255,80,.08);
+  text-shadow:0 0 10px rgba(15,255,80,.6);
+}
+.press-start{text-shadow:0 0 14px var(--green),0 0 30px rgba(15,255,80,.5);}
+.hi-value{text-shadow:0 0 14px rgba(255,45,149,.6);}
+.banner{box-shadow:0 0 20px rgba(15,255,80,.22),inset 0 0 16px rgba(15,255,80,.05);text-shadow:0 0 12px rgba(15,255,80,.5);}
+.result-score{text-shadow:0 0 14px var(--green),0 0 34px rgba(15,255,80,.5);}
+.vs-banner{text-shadow:0 0 16px var(--pink),0 0 36px rgba(255,45,149,.5);}
+
+/* #37 算法按钮 → 实体街机键（3D 斜角 + 按下下沉） */
+.algo-btn{
+  position:relative;
+  box-shadow:0 4px 0 rgba(0,0,0,.55),0 5px 8px rgba(0,0,0,.4);
+  transform:translateY(0);
+  transition:transform .08s ease,box-shadow .08s ease,border-color .15s,color .15s;
+}
+.algo-btn:hover{transform:translateY(-2px);box-shadow:0 6px 0 rgba(0,0,0,.55),0 8px 12px rgba(0,0,0,.45);}
+.algo-btn:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.55),0 1px 3px rgba(0,0,0,.4);}
+.algo-btn.sel{box-shadow:0 4px 0 rgba(0,0,0,.55),0 0 12px rgba(15,255,80,.4),inset 0 0 10px rgba(15,255,80,.1);}
+
+/* #38 选中边框通电跑光 */
+.mode-card.sel,.algo-btn.sel{position:relative;}
+.mode-card.sel::before,.algo-btn.sel::before{
+  content:'';position:absolute;inset:-2px;border-radius:inherit;padding:2px;
+  background:conic-gradient(from 0deg,transparent 0 62%,var(--neon) 78%,#fff 84%,var(--pink) 90%,transparent 100%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;
+  animation:borderRun 1.9s linear infinite;pointer-events:none;
+}
+.algo-btn.sel::before{border-radius:8px;}
+@keyframes borderRun{to{transform:rotate(360deg)}}
+
+/* #39 分数揭晓光束扫描 */
+.result-card{position:relative;overflow:hidden;}
+.result-card.sweep::after{
+  content:'';position:absolute;top:0;left:-65%;width:55%;height:100%;pointer-events:none;
+  background:linear-gradient(105deg,transparent,rgba(0,240,255,.10),rgba(255,255,255,.4),rgba(0,240,255,.10),transparent);
+  animation:beamSweep 1.05s ease-out;
+}
+@keyframes beamSweep{0%{left:-65%}100%{left:125%}}
+
+/* #40 HUD 角标框（四角 L 形科幻支架） */
+.hud{
+  --hc:var(--neon);--hl:18px;--ht:2px;
+  background-image:
+    linear-gradient(var(--hc),var(--hc)),linear-gradient(var(--hc),var(--hc)),
+    linear-gradient(var(--hc),var(--hc)),linear-gradient(var(--hc),var(--hc)),
+    linear-gradient(var(--hc),var(--hc)),linear-gradient(var(--hc),var(--hc)),
+    linear-gradient(var(--hc),var(--hc)),linear-gradient(var(--hc),var(--hc));
+  background-repeat:no-repeat;
+  background-size:
+    var(--hl) var(--ht),var(--ht) var(--hl),
+    var(--hl) var(--ht),var(--ht) var(--hl),
+    var(--hl) var(--ht),var(--ht) var(--hl),
+    var(--hl) var(--ht),var(--ht) var(--hl);
+  background-position:
+    left top,left top, right top,right top,
+    left bottom,left bottom, right bottom,right bottom;
+}
+.result-card.hud{--hc:var(--neon);}
+.title-box.hud{--hc:var(--neon);}
+.algo-info.hud{--hc:rgba(0,240,255,.7);--hl:14px;}
+
+/* #41 等宽数字仪表盘（防止跳动） */
+.sbv,.sbr,.result-score,.hi-value,.countdown,#sb-frames,.vs-banner{
+  font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;
+}
+
+/* #42 响应式适配 */
+@media (max-width:820px){
+  .screen{padding:18px 14px;}
+  .title-main{font-size:15px;letter-spacing:1px;}
+  .title-box{padding:14px 20px;}
+  .badge-row{flex-wrap:wrap;justify-content:center;gap:8px;}
+  .mode-row{flex-direction:column;gap:12px;width:100%;max-width:360px;}
+  .mode-card{padding:14px 20px;}
+  .algo-row{flex-wrap:wrap;justify-content:center;gap:8px;}
+  .params{flex-direction:column;gap:10px;align-items:center;}
+  .preview-row{flex-direction:column;}
+  .preview-box{height:130px;}
+  .scoreboard{gap:22px;}
+  .result-score{font-size:32px;}
+  .result-rank{font-size:28px;}
+  .result-card{padding:16px 24px;}
+  .game-header,.algo-info,.vs-banner,.preview-row,.progress-bar,#curve,#log{max-width:96vw;}
+}
+@media (max-width:480px){
+  .title-main{font-size:12px;}
+  .title-sub{font-size:11px;}
+  .btn-start,.btn-fight{font-size:12px;padding:11px 30px;}
+  .sb-item .sbv{font-size:18px;}
+  .sb-item .sbr{font-size:22px;}
+  .result-score{font-size:26px;}
+  .scoreboard{gap:14px;}
+}
 </style>
 </head>
 <body>
@@ -426,16 +603,25 @@ body{
 <!-- Starfield -->
 <canvas id="stars"></canvas>
 
+<!-- Synthwave sunset glow -->
+<div id="sunset"></div>
+
+<!-- Synthwave perspective grid floor -->
+<div id="grid"></div>
+
+<!-- Animated moving scanline band -->
+<div class="scanmove"></div>
+
 <!-- App -->
 <div id="app">
   <!-- TITLE -->
   <div id="screen-title" class="screen active">
     <div class="title-center">
       <div class="btn-top-row">
-        <button class="btn-help" id="btn-help">📖 说明</button>
-        <button class="btn-ach" id="btn-ach">🏆 成就</button>
+        <button class="btn-help" id="btn-help">[ ? ] 说明</button>
+        <button class="btn-ach" id="btn-ach">[ ★ ] 成就</button>
       </div>
-      <div class="title-box">
+      <div class="title-box hud">
         <div class="title-main" id="title-main"><span class="title-letter">V</span><span class="title-letter">Q</span><span class="title-letter">A</span><span class="title-letter"> </span><span class="title-letter">A</span><span class="title-letter">R</span><span class="title-letter">C</span><span class="title-letter">A</span><span class="title-letter">D</span><span class="title-letter">E</span><span class="title-letter"> </span><span class="title-letter">M</span><span class="title-letter">A</span><span class="title-letter">C</span><span class="title-letter">H</span><span class="title-letter">I</span><span class="title-letter">N</span><span class="title-letter">E</span></div>
         <div class="title-sub">视觉质量评估 · 街机评分台</div>
       </div>
@@ -479,7 +665,7 @@ body{
       <h2 id="game-title">PSNR · FR MODE</h2>
       <button class="btn-back" id="btn-back-game">返回主页</button>
     </div>
-    <div class="algo-info fr" id="algo-info">
+    <div class="algo-info fr hud" id="algo-info">
       <div class="ai-header" id="ai-header">
         <div class="ai-title">
           <span id="ai-name">PSNR</span>
@@ -513,7 +699,7 @@ body{
   <!-- RESULT -->
   <div id="screen-result" class="screen">
     <div class="banner" id="result-banner">关卡通过！</div>
-    <div class="result-card">
+    <div class="result-card hud">
       <div class="result-algo fall-item" id="result-algo" style="animation-delay:0ms">--</div>
       <div class="result-score fall-item" id="result-score" style="animation-delay:150ms">--</div>
       <div class="result-rank fall-item" id="result-rank" style="animation-delay:300ms">--</div>
@@ -692,8 +878,11 @@ function demoCycle(){
 let currentScreen='title';
 function showScreen(name){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById('screen-'+name).classList.add('active');
+  const el=document.getElementById('screen-'+name);el.classList.add('active');
   currentScreen=name;
+  // #36 glitch transition
+  el.classList.remove('glitching');void el.offsetWidth;el.classList.add('glitching');
+  setTimeout(()=>el.classList.remove('glitching'),380);
   stopDemo();
   if(name==='title')titleEntrance();
 }
@@ -1051,6 +1240,9 @@ function showResult(result,rank){
   document.getElementById('result-meta').textContent='帧数: '+(result.agg?.n||1)+' · 耗时: '+(result.elapsed_sec||'--')+'s';
   // Re-trigger fall animations
   document.querySelectorAll('.fall-item').forEach(el=>{el.classList.remove('fall-item');void el.offsetWidth;el.classList.add('fall-item');});
+  // #39 light beam sweep across result card
+  const rc=document.querySelector('#screen-result .result-card');
+  if(rc){rc.classList.remove('sweep');void rc.offsetWidth;rc.classList.add('sweep');setTimeout(()=>rc.classList.remove('sweep'),1100);}
   // Rank spin
   spinRank(rank);
   // Fight text
