@@ -1,0 +1,35 @@
+# ============================================================
+#  VQA Arcade —— docker-compose.yml
+#  用法: docker compose up -d --build
+#  首次构建后启动, 7 算法完整可用
+# ============================================================
+
+services:
+  vqa:
+    build: .
+    container_name: vqa-arcade
+    restart: unless-stopped
+    ports:
+      - "5100:5100"
+    volumes:
+      # 模型文件挂载(避免 354MB 进镜像)
+      - ./vqa/algos:/app/vqa/algos:ro
+      # uploads 持久化
+      - ./uploads:/app/uploads
+      # 代码热更新(开发可选, 生产可删)
+      - ./server.py:/app/server.py:ro
+      - ./vqa:/app/vqa:ro
+      - ./web:/app/web:ro
+    environment:
+      - TZ=Asia/Shanghai
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5100/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

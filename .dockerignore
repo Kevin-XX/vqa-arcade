@@ -1,0 +1,41 @@
+# .dockerignore —— 排除不需要进镜像的文件
+# 文档/记忆/IDE 配置
+.git
+.gitignore
+.github
+.vscode
+.idea
+.codebuddy
+.workbuddy
+README.md
+docs/
+reports/
+tests/
+scripts/
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# 用户上传(运行时挂载, 不进镜像)
+uploads/
+
+# OS 垃圾
+.DS_Store
+Thumbs.db
+
+# 演示素材(不进镜像, 运行时不需要)
+samples/
+
+# Docker 自身
+Dockerfile
+docker-compose.yml
+docker-compose.*.yml
+.dockerignore
