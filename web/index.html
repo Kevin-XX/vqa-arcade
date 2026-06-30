@@ -717,7 +717,7 @@ body{
 
 <!-- Achievement Panel -->
 <div class="ach-panel" id="ach-panel">
-  <div class="ach-title">🏆 成就殿堂</div>
+  <div class="ach-title">[ ACHIEVEMENT ] 成就殿堂</div>
   <div class="ach-count" id="ach-count"></div>
   <div class="ach-grid" id="ach-grid"></div>
   <button class="btn-ach-close" id="btn-ach-close">关闭</button>
@@ -938,24 +938,26 @@ function showHistory(algoName){
 
 // ── Achievements ──
 const ACH_DEFS=[
-  {id:'first_run',icon:'🥇',name:'首次评测',desc:'完成第一次评估'},
-  {id:'vsfa_first',icon:'🤖',name:'VSFA 首战',desc:'使用 VSFA 算法评测'},
-  {id:'five_runs',icon:'💯',name:'评测老手',desc:'累计完成 5 次评估'},
-  {id:'dual_mode',icon:'🔄',name:'FR/NR 双修',desc:'分别用过 FR 和 NR 模式'},
-  {id:'s_rank',icon:'⭐',name:'S 级达人',desc:'获得一次 S 级评分'},
-  {id:'all_algos',icon:'🎯',name:'全能选手',desc:'使用全部 4 种算法'},
-  {id:'new_record',icon:'🔝',name:'新纪录',desc:'刷新历史最高分'},
-  {id:'frame_master',icon:'📊',name:'帧数狂魔',desc:'一次评估超过 100 帧'},
+  {id:'first_run',icon:'★',name:'首次评测',desc:'完成第一次评估'},
+  {id:'deep_first',icon:'K',name:'深度学习先锋',desc:'首次使用 VMAF 或 VSFA'},
+  {id:'five_runs',icon:'5',name:'评测老手',desc:'累计完成 5 次评估'},
+  {id:'dual_mode',icon:'<>',name:'FR/NR 双修',desc:'分别用过 FR 和 NR 模式'},
+  {id:'s_rank',icon:'S',name:'S 级达人',desc:'获得一次 S 级评分'},
+  {id:'all_algos',icon:'7',name:'全能选手',desc:'使用全部 7 种算法'},
+  {id:'new_record',icon:'#1',name:'新纪录',desc:'刷新历史最高分'},
+  {id:'frame_master',icon:'[]',name:'帧数狂魔',desc:'一次评估超过 60 帧'},
+  {id:'video_master',icon:'V',name:'视频大师',desc:'完成一次视频质量评估'},
 ];
-let achState={},runCount=0,algoUsed={};
+let achState={},runCount=0,algoUsed={},modeUsed={FR:false,NR:false};
 // Load from localStorage
 try{
   const saved=JSON.parse(localStorage.getItem('vqa_ach')||'{}');
   Object.assign(achState,saved);
   runCount=saved._runCount||0;
   algoUsed=saved._algoUsed||{};
+  modeUsed=saved._modeUsed||{FR:false,NR:false};
 }catch(e){}
-function saveAch(){achState._runCount=runCount;achState._algoUsed=algoUsed;localStorage.setItem('vqa_ach',JSON.stringify(achState));}
+function saveAch(){achState._runCount=runCount;achState._algoUsed=algoUsed;achState._modeUsed=modeUsed;localStorage.setItem('vqa_ach',JSON.stringify(achState));}
 
 function checkAch(name,msg){
   if(achState[name])return;
@@ -972,7 +974,7 @@ function renderAchPanel(){
   g.innerHTML=ACH_DEFS.map(a=>{
     const on=!!achState[a.id];
     return `<div class="ach-card${on?' unlocked':' locked'}">
-      ${on?`<div class="ach-icon">${a.icon}</div>`:`<div class="ach-lock">🔒</div>`}
+      ${on?`<div class="ach-icon">${a.icon}</div>`:`<div class="ach-lock">[X]</div>`}
       <div class="ach-name">${a.name}</div>
       <div class="ach-desc">${a.desc}</div>
     </div>`;
@@ -1225,8 +1227,22 @@ function onScoreDone(result){
   document.body.classList.add('shaking');setTimeout(()=>document.body.classList.remove('shaking'),600);
   try{sVictory()}catch(e){}
   runCount++;if(runCount>=5)checkAch('five_runs','评测老手');
-  if(algo==='VSFA')checkAch('vsfa_first','VSFA 首战');
   checkAch('first_run','首次评测！');
+  // 深度学习先锋：VMAF / VMAF-V / VSFA / VSFA-V
+  if(['VMAF','VMAF-V','VSFA','VSFA-V'].includes(algo))checkAch('deep_first','深度学习先锋');
+  // FR/NR 双修
+  modeUsed[mode]=true;if(modeUsed.FR&&modeUsed.NR)checkAch('dual_mode','FR/NR 双修！');
+  // S 级达人
+  if(rank==='S')checkAch('s_rank','S 级评价！');
+  // 全能选手：全部 7 种算法
+  const ALL7=['PSNR','SSIM','VMAF','VMAF-V','NIQE-Lite','VSFA','VSFA-V'];
+  algoUsed[algo]=true;if(ALL7.every(a=>algoUsed[a]))checkAch('all_algos','七算法全能！');
+  // 新纪录
+  if(isNewRecord)checkAch('new_record','新纪录诞生！');
+  // 帧数狂魔（视频 >60 帧）
+  if(n>60)checkAch('frame_master','60+ 帧视频评估');
+  // 视频大师
+  if(n>1)checkAch('video_master','视频质量评估');
   setTimeout(()=>{showScreen('result');showResult(result,rank);},1000);
 }
 
